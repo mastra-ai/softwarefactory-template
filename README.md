@@ -57,9 +57,9 @@ Guide: https://mastra.ai/docs/software-factory/auth
 
 The Factory connects to GitHub through a GitHub App you own. `npm create softwarefactory` can create it for you automatically (manifest flow). To do it manually: https://mastra.ai/docs/software-factory/github
 
-The app needs **contents, issues, pull requests, metadata** permissions and the **issues, issue_comment, pull_request, pull_request_review, pull_request_review_comment** events. Set its callback URL to `<your app origin>/auth/github/callback`.
+The app needs **contents, issues, pull requests, metadata** permissions. Set its callback URL to `<your app origin>/auth/github/callback`.
 
-Webhooks (optional — powers auto-triage and PR notifications): point the App's webhook URL at `https://<public-host>/web/github/webhook` and set `GITHUB_APP_WEBHOOK_SECRET`. Local development works without webhooks; issues are fetched on demand.
+Webhooks (optional — powers auto-triage and PR notifications, requires a public host; GitHub rejects localhost webhook URLs): in the App settings, set the webhook URL to `https://<public-host>/web/github/webhook` with the `GITHUB_APP_WEBHOOK_SECRET` from `.env` as the secret, activate it, and subscribe to the **issues, issue_comment, pull_request, pull_request_review, pull_request_review_comment** events. Local development works without webhooks; issues are fetched on demand.
 
 ### Linear (optional)
 
