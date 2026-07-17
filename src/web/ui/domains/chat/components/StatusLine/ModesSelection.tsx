@@ -1,6 +1,5 @@
 import { Button } from '@mastra/playground-ui/components/Button';
 import { ButtonsGroup } from '@mastra/playground-ui/components/ButtonsGroup';
-import { useEffect, useState } from 'react';
 
 import { useChatModes } from '../../context/useChatModes';
 import { useChatSessionContext } from '../../context/useChatSessionContext';
@@ -14,12 +13,7 @@ import { getModeColor, getModeForegroundColor } from '../mode-colors';
 export function ModesSelection() {
   const { kind } = useChatSessionContext();
   const { modes, activeModeId, setMode } = useChatModes();
-  const [pendingModeId, setPendingModeId] = useState<string>();
-  const selectedModeId = pendingModeId ?? activeModeId ?? modes[0]?.id;
-
-  useEffect(() => {
-    if (pendingModeId === activeModeId) setPendingModeId(undefined);
-  }, [activeModeId, pendingModeId]);
+  const selectedModeId = activeModeId ?? modes[0]?.id;
 
   if (kind === 'factory') return null;
   if (modes.length === 0) return null;
@@ -35,21 +29,15 @@ export function ModesSelection() {
           return (
             <Button
               key={m.id}
-              type="button"
               variant="outline"
               size="sm"
-              aria-busy={pendingModeId === m.id}
               style={
                 selected && modeColor && modeForegroundColor
                   ? { backgroundColor: modeColor, color: modeForegroundColor }
                   : undefined
               }
               aria-pressed={selected}
-              onClick={() => {
-                if (pendingModeId) return;
-                setPendingModeId(m.id);
-                void setMode(m.id).catch(() => setPendingModeId(undefined));
-              }}
+              onClick={() => void setMode(m.id)}
             >
               {m.name ?? m.id}
             </Button>

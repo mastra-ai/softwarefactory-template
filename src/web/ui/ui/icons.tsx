@@ -53,23 +53,17 @@ export function LogoMark({ size = 24, className }: IconProps) {
 
 /** The "MASTRA CODE" wordmark in half-block ASCII art, mirroring the TUI
  *  banner. Rendered as the empty-state hero. */
-const CODE_WORDMARK_ART = `█▀▄▀█ ▄▀█ █▀ ▀█▀ █▀█ ▄▀█   █▀▀ █▀█ █▀▄ █▀▀
+const WORDMARK_ART = `█▀▄▀█ ▄▀█ █▀ ▀█▀ █▀█ ▄▀█   █▀▀ █▀█ █▀▄ █▀▀
 █ ▀ █ █▀█ ▀█  █  █▀▄ █▀█   █   █ █ █ █ █▀▀
 ▀   ▀ ▀ ▀ ▀▀  ▀  ▀ ▀ ▀ ▀   ▀▀▀ ▀▀▀ ▀▀  ▀▀▀`;
 
-const FACTORY_WORDMARK_ART = `█▀▄▀█ ▄▀█ █▀ ▀█▀ █▀█ ▄▀█   █▀▀ ▄▀█ █▀▀ ▀█▀ █▀█ █▀█ █▄█
-█ ▀ █ █▀█ ▀█  █  █▀▄ █▀█   █▀  █▀█ █    █  █ █ █▀▄  █
-▀   ▀ ▀ ▀ ▀▀  ▀  ▀ ▀ ▀ ▀   ▀   ▀ ▀ ▀▀▀  ▀  ▀▀▀ ▀ ▀  ▀`;
-
-export function Wordmark({ className, brand = 'code' }: { className?: string; brand?: 'code' | 'factory' }) {
-  const factory = brand === 'factory';
-
+export function Wordmark({ className }: { className?: string }) {
   return (
     <pre
       className={`m-0 select-none overflow-x-auto whitespace-pre font-mono text-xs leading-[1.25] text-icon6${className ? ` ${className}` : ''}`}
-      aria-label={factory ? 'Mastra Factory' : 'Mastra Code'}
+      aria-label="Mastra Code"
     >
-      {factory ? FACTORY_WORDMARK_ART : CODE_WORDMARK_ART}
+      {WORDMARK_ART}
     </pre>
   );
 }

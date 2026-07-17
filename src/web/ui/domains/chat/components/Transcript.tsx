@@ -11,7 +11,6 @@ import { MessageFactory } from '@mastra/react';
 import type { FilePart, MessageRoleRenderers, ReasoningPart, TextPart, ToolInvocationPart } from '@mastra/react';
 import {
   Bell,
-  BookOpen,
   ChevronDown,
   CircleDot,
   CircleX,
@@ -73,7 +72,7 @@ import type {
 
 // Monospace, scrollable container for serialized args/results/file dumps.
 const resultBlock =
-  'm-0 mt-1 max-h-72 max-w-full overflow-auto whitespace-pre rounded-sm bg-surface1 p-2 font-mono text-xs leading-normal text-icon5';
+  'm-0 mt-1 max-h-72 overflow-y-auto whitespace-pre-wrap break-all rounded-sm bg-surface1 p-2 font-mono text-xs leading-normal text-icon5';
 
 // Prompt cards (approval / suspension) — an elevated card with a colored left rail.
 const promptCardBase = 'rounded-lg border border-border1 bg-surface3 px-4 py-3 shadow-md';
@@ -100,66 +99,6 @@ function lastSegment(id: string): string {
   return parts[parts.length - 1] ?? id;
 }
 
-interface SkillActivation {
-  name: string;
-  content: string;
-  arguments?: string;
-}
-
-const skillActivationPattern = /^<skill name="([a-z0-9]+(?:-[a-z0-9]+)*)">\n([\s\S]+)\n<\/skill>$/;
-const skillArgumentsMarker = '\n\nARGUMENTS: ';
-
-function parseSkillActivation(text: string): SkillActivation | undefined {
-  const match = skillActivationPattern.exec(text.trim());
-  if (!match) return undefined;
-
-  const content = match[2];
-  const argumentsIndex = content.lastIndexOf(skillArgumentsMarker);
-  return {
-    name: match[1],
-    content,
-    arguments: argumentsIndex >= 0 ? content.slice(argumentsIndex + skillArgumentsMarker.length).trim() : undefined,
-  };
-}
-
-function SkillActivationCard({ activation }: { activation: SkillActivation }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <Collapsible open={expanded} onOpenChange={setExpanded} className="min-w-64 max-w-full">
-      <CollapsibleTrigger
-        className="w-full rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent1"
-        aria-label={`${expanded ? 'Hide' : 'Show'} ${activation.name} skill contents`}
-      >
-        <span className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 text-icon3">
-            <BookOpen size={14} aria-hidden="true" />
-            <Txt as="span" variant="ui-xs" className="uppercase tracking-wide">
-              Skill
-            </Txt>
-          </span>
-          <Txt as="span" variant="ui-sm" font="mono" className="text-icon6">
-            {activation.name}
-          </Txt>
-          <ChevronDown
-            size={13}
-            aria-hidden="true"
-            className={`ml-auto shrink-0 text-icon3 transition-transform ${expanded ? 'rotate-180' : ''}`}
-          />
-        </span>
-        {activation.arguments && (
-          <span className="mt-1 block truncate text-ui-xs text-icon3">{activation.arguments}</span>
-        )}
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-2 max-h-96 overflow-y-auto border-t border-border1 pt-2">
-        <div className="prose text-ui-sm">
-          <Markdown>{activation.content}</Markdown>
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Tool card (collapsible)
 // ---------------------------------------------------------------------------
@@ -179,7 +118,7 @@ const STATUS_VARIANT: Record<ToolCall['status'], 'info' | 'success' | 'error'> =
 /** Label + copy header for a section inside a tool card body. */
 function ToolSection({ label, copyText, children }: { label: string; copyText: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 max-w-full flex-col gap-1">
+    <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-2">
         <Txt as="span" variant="ui-xs" className="text-icon3 uppercase tracking-wide">
           {label}
@@ -198,7 +137,7 @@ function DiffView({ oldText, newText, path }: { oldText: string; newText: string
   const added = newText.split('\n');
   return (
     <div
-      className="min-w-0 max-w-full overflow-x-auto rounded-xl border border-border1 bg-surface1 font-mono text-xs leading-normal"
+      className="overflow-x-auto rounded-xl border border-border1 bg-surface1 font-mono text-xs leading-normal"
       role="group"
       aria-label="File change"
     >
@@ -300,7 +239,7 @@ function ToolCard({
     <Collapsible
       open={expanded}
       onOpenChange={setExpanded}
-      className={`min-w-0 max-w-full overflow-hidden bg-surface3 ${toolGroupClasses(groupPosition)}`}
+      className={`overflow-hidden bg-surface3 ${toolGroupClasses(groupPosition)}`}
       role="group"
       aria-label={`Tool: ${tool.toolName}`}
     >
@@ -335,7 +274,7 @@ function ToolCard({
           </Badge>
         </span>
       </CollapsibleTrigger>
-      <CollapsibleContent className="flex min-w-0 max-w-full flex-col gap-2 px-2 pb-2">
+      <CollapsibleContent className="flex flex-col gap-2 px-2 pb-2">
         {edit ? (
           edit.new_string !== undefined ? (
             <ToolSection label={edit.path ?? 'Change'} copyText={edit.new_string}>
@@ -354,7 +293,7 @@ function ToolCard({
         ) : null}
         {tool.output && (
           <ToolSection label="Output" copyText={tool.output}>
-            <pre className="m-0 max-h-72 max-w-full overflow-auto whitespace-pre rounded-xl bg-surface1 px-3 py-2 font-mono text-xs leading-normal text-icon3">
+            <pre className="m-0 max-h-72 overflow-y-auto whitespace-pre-wrap break-all rounded-xl bg-surface1 px-3 py-2 font-mono text-xs leading-normal text-icon3">
               {tool.output}
             </pre>
           </ToolSection>
@@ -362,7 +301,7 @@ function ToolCard({
         {resultText !== undefined && <DsCodeBlock code={truncate(resultText, 800)} lang="json" fileName="Result" />}
       </CollapsibleContent>
       {!expanded && tool.output && (
-        <pre className="mx-2 mb-2 max-h-72 max-w-full overflow-auto whitespace-pre rounded-xl bg-surface1 px-3 py-2 font-mono text-xs leading-normal text-icon3 opacity-75">
+        <pre className="mx-2 mb-2 max-h-72 overflow-y-auto whitespace-pre-wrap break-all rounded-xl bg-surface1 px-3 py-2 font-mono text-xs leading-normal text-icon3 opacity-75">
           {truncate(tool.output, 180)}
         </pre>
       )}
@@ -803,27 +742,19 @@ function MessageBubble({ entry }: { entry: MessageEntry }) {
   };
 
   const renderers = {
-    Text: (part: TextPart) => {
-      if (entry.message.role === 'user') {
-        const activation = parseSkillActivation(part.text);
-        return activation ? (
-          <SkillActivationCard activation={activation} />
-        ) : (
-          <div className="prose">
-            <Markdown>{part.text}</Markdown>
-          </div>
-        );
-      }
-
-      return (
+    Text: (part: TextPart) =>
+      entry.message.role === 'user' ? (
+        <div className="prose">
+          <Markdown>{part.text}</Markdown>
+        </div>
+      ) : (
         <div className="prose">
           <Markdown>{part.text}</Markdown>
           {entry.streaming && part === lastTextPart && (
             <span className="ml-0.5 inline-block h-[1em] w-0.5 animate-pulse bg-accent1 align-text-bottom" />
           )}
         </div>
-      );
-    },
+      ),
     Reasoning: (part: ReasoningPart) => (
       <div className="my-1.5 border-l-2 border-border1 pl-2.5 text-ui-sm italic text-icon3 [&_p]:my-0.5">
         <Markdown>{part.reasoning}</Markdown>

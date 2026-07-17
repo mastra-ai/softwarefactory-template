@@ -2,12 +2,12 @@ import type { AgentControllerSessionSettings } from '@mastra/client-js';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@mastra/playground-ui/components/Dialog';
 import { Tab, TabContent, TabList, Tabs } from '@mastra/playground-ui/components/Tabs';
 import { useTheme } from '@mastra/playground-ui/components/ThemeProvider';
-import { Brain, FolderKanban, Key, Layers, Palette, Search, Server, SlidersHorizontal } from 'lucide-react';
+import { Brain, Key, Layers, Palette, Search, Server, SlidersHorizontal } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { useToast } from '../../../ui';
-
+import { useChatModels } from '../../chat/context/useChatModels';
 import { useChatPermissions } from '../../chat/context/useChatPermissions';
 import { useChatSessionContext } from '../../chat/context/useChatSessionContext';
 import { useAgentControllerModels } from '../../../../../shared/hooks/useAgentControllerModels';
@@ -18,12 +18,11 @@ import { CustomProvidersSection } from './CustomProvidersSection';
 import { IntakeSection } from './IntakeSection';
 import { ModelPacksSection } from './ModelPacksSection';
 import { ProjectSetupSection } from './ProjectSetupSection';
-import { ProjectsSection } from './ProjectsSection';
 import { OMSection } from './OMSection';
 import { ProvidersSection } from './ProvidersSection';
 import { BehaviorTab, GeneralTab, ModelTab } from './SettingsPanel.parts';
 
-type Tab = 'general' | 'projects' | 'model' | 'packs' | 'memory' | 'behavior' | 'providers' | 'custom-providers';
+type Tab = 'general' | 'model' | 'packs' | 'memory' | 'behavior' | 'providers' | 'custom-providers';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -31,7 +30,6 @@ interface SettingsPanelProps {
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'general', label: 'General', icon: Palette },
-  { id: 'projects', label: 'Projects', icon: FolderKanban },
   { id: 'model', label: 'Model', icon: Search },
   { id: 'packs', label: 'Packs', icon: Layers },
   { id: 'memory', label: 'Memory', icon: Brain },
@@ -51,6 +49,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [tab, setTab] = useState<Tab>('general');
   const { theme, setTheme } = useTheme();
   const { resourceId, sessionEnabled, projectPath, baseUrl } = useChatSessionContext();
+  const { activeModelId, setModel } = useChatModels();
   const { permissions, pendingPermissionCategory, setPermissionForCategory } = useChatPermissions();
   const { toast } = useToast();
   const hookArgs = {
@@ -67,6 +66,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const settings = settingsQuery.data ?? null;
   const sessionResourceId = sessionEnabled ? resourceId : undefined;
 
+  const onModelChange = (modelId: string) => {
+    void setModel(modelId).then(() => toast('Model updated', 'success'));
+  };
   const onBehaviorChange = (updates: Partial<AgentControllerSessionSettings>) => {
     void setStateMutation.mutateAsync(updates).then(() => toast('Settings updated', 'success'));
   };
@@ -94,11 +96,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <ProjectSetupSection />
               <IntakeSection />
             </TabContent>
-            <TabContent value="projects">
-              <ProjectsSection />
-            </TabContent>
             <TabContent value="model">
-              <ModelTab settings={settings} onBehaviorChange={onBehaviorChange} />
+              <ModelTab
+                models={models}
+                currentModelId={activeModelId ?? null}
+                settings={settings}
+                onModelChange={onModelChange}
+                onBehaviorChange={onBehaviorChange}
+              />
             </TabContent>
             <TabContent value="packs">
               <ModelPacksSection resourceId={sessionResourceId} models={models} />

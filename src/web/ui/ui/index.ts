@@ -1,5 +1,4 @@
 export { ChatLayout } from './ChatLayout';
-export { PageLayout } from './PageLayout';
 export { Markdown } from './Markdown';
 export { SkeletonRows } from './SkeletonRows';
 export { ToastProvider, useToast } from './toast';

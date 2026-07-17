@@ -1,54 +1,48 @@
 /**
- * Application database bridge for the GitHub App + Linear integrations.
+ * Application database layer for the GitHub App integration.
  *
- * TEMPORARY: github/linear are the last app-table consumers still on drizzle.
- * The drizzle client here no longer owns a connection — it is built over the
- * shared pg pool of the storage instance injected into `MastraFactory`
- * (`getSharedAppPool()`), so Mastra storage and the app tables ride one pool.
- * The integrations PR ports github/linear to `FactoryStorageDomain` classes
- * and deletes this module together with the drizzle dependency.
+ * This is a *separate* Postgres from Mastra's own storage: it is created lazily
+ * from the factory-resolved database URL (`getAppDatabaseUrl()`, seeded by
+ * `MastraFactory` with an `APP_DATABASE_URL` env fallback) and holds only the
+ * GitHub installations/projects tables defined in `./schema`. The connection
+ * is a singleton so the whole process shares one pg Pool.
  */
 
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type pg from 'pg';
-import { getSharedAppPool } from '../runtime-config';
+import pkg from 'pg';
+import { getAppDatabaseUrl } from '../runtime-config';
 import { MIGRATION_SQL } from './schema';
 import * as schema from './schema';
 
+const { Pool } = pkg;
+
 export type AppDb = NodePgDatabase<typeof schema>;
 
-let boundPool: pg.Pool | undefined;
+let pool: pkg.Pool | undefined;
 let db: AppDb | undefined;
 let migrationPromise: Promise<void> | undefined;
 
 /**
- * True when the app database is available: the factory was configured with a
- * `PostgresStore` whose pool the app tables share. Required for the GitHub
- * feature.
+ * True when the app database is configured. Required for the GitHub feature.
  */
 export function isAppDbConfigured(): boolean {
-  return Boolean(getSharedAppPool());
+  return Boolean(getAppDatabaseUrl());
 }
 
 /**
- * Get the drizzle client bound to the shared app pool (rebuilt if the seeded
- * storage changed, e.g. across test seeds).
- * @throws if the factory has no pg-backed storage.
+ * Get (lazily creating) the Drizzle client bound to the app database URL.
+ * @throws if no app database is configured.
  */
 export function getAppDb(): AppDb {
-  const pool = getSharedAppPool();
-  if (!pool) {
-    throw new Error(
-      'No Postgres storage configured; the GitHub App feature requires the MastraFactory `storage` slot to be a PostgresStore.',
-    );
+  if (db) return db;
+  const connectionString = getAppDatabaseUrl();
+  if (!connectionString) {
+    throw new Error('APP_DATABASE_URL is not set; the GitHub App feature requires an application database.');
   }
-  if (!db || boundPool !== pool) {
-    boundPool = pool;
-    db = drizzle(pool, { schema });
-    migrationPromise = undefined;
-  }
+  pool = new Pool({ connectionString });
+  db = drizzle(pool, { schema });
   return db;
 }
 
@@ -73,11 +67,27 @@ export async function ensureAppDbReady(): Promise<void> {
 }
 
 /**
- * The shared pg `Pool`. Used by the distributed project lock, which needs a
- * single dedicated connection to hold a transaction-scoped advisory lock.
- * @throws if the factory has no pg-backed storage.
+ * Get the underlying pg `Pool`, lazily creating the client if needed. Used by
+ * the distributed project lock, which needs a single dedicated connection to
+ * hold a transaction-scoped advisory lock.
+ * @throws if `APP_DATABASE_URL` is not set.
  */
-export function getAppDbPool(): pg.Pool {
+export function getAppDbPool(): pkg.Pool {
   getAppDb();
-  return boundPool!;
+  if (!pool) {
+    throw new Error('APP_DATABASE_URL is not set; the GitHub App feature requires an application database.');
+  }
+  return pool;
+}
+
+/**
+ * Close the pool. Primarily for tests / graceful shutdown.
+ */
+export async function closeAppDb(): Promise<void> {
+  if (pool) {
+    await pool.end();
+    pool = undefined;
+    db = undefined;
+    migrationPromise = undefined;
+  }
 }

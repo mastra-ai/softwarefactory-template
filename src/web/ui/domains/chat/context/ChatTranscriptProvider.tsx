@@ -67,7 +67,7 @@ function ChatTranscriptValueProvider({
   transcriptApi: ReturnType<typeof useAgentControllerTranscript>;
 }) {
   const connection = useChatConnection();
-  const { transcript, reset, localUser, resolvePrompt, clearPending, pushNotice } = transcriptApi;
+  const { transcript, reset, localUser, resolvePrompt, pushNotice } = transcriptApi;
 
   const effectiveTranscript: TranscriptState = {
     ...transcript,
@@ -85,7 +85,6 @@ function ChatTranscriptValueProvider({
     localUser,
     reset,
     resolvePrompt,
-    clearPending,
     pushNotice,
   };
 

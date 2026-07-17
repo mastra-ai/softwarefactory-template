@@ -86,7 +86,7 @@ Create a Linear OAuth app (Linear → Settings → API → OAuth applications �
 
 ## Versions
 
-The Mastra packages use caret ranges (currently anchored on `@mastra/core@1.52.0-alpha.4` and `@mastra/code-sdk@0.2.0-alpha.4`). Upgrade them together when updating.
+The Mastra packages use caret ranges (currently anchored on `@mastra/core@1.52.0-alpha.3` and `@mastra/code-sdk@0.2.0-alpha.3`). Upgrade them together when updating.
 
 ## License
 

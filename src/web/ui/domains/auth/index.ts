@@ -1,4 +1,4 @@
-export { safeReturnTo, SignInPage } from './components/SignInPage';
+export { SignInPage } from './components/SignInPage';
 export { useWebAuth } from '../../../../shared/hooks/useWebAuth';
 export {
   fetchAuthState,

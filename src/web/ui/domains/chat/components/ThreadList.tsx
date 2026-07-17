@@ -21,6 +21,8 @@ import {
 import { useAgentControllerThreads } from '../../../../../shared/hooks/useAgentControllerThreads';
 import { AGENT_CONTROLLER_ID } from '../services/constants';
 
+const MAX_THREADS = 5;
+
 export function ThreadList() {
   const { activeProject } = useActiveProjectContext();
   const { resourceId, sessionEnabled, projectPath, baseUrl } = useChatSessionContext();
@@ -46,11 +48,13 @@ export function ThreadList() {
 
   const threads = threadsQuery.data ?? [];
   const activeThreadId = routeThreadId;
-  const sortedThreads = [...threads].sort((a, b) => {
-    const ta = a.updatedAt ?? a.createdAt ?? '';
-    const tb = b.updatedAt ?? b.createdAt ?? '';
-    return tb.localeCompare(ta);
-  });
+  const sortedThreads = [...threads]
+    .sort((a, b) => {
+      const ta = a.updatedAt ?? a.createdAt ?? '';
+      const tb = b.updatedAt ?? b.createdAt ?? '';
+      return tb.localeCompare(ta);
+    })
+    .slice(0, MAX_THREADS);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -73,6 +77,11 @@ export function ThreadList() {
               onStartRename={() => setRenamingId(thread.id)}
             />
           ),
+        )}
+        {threads.length > MAX_THREADS && (
+          <Txt as="div" variant="ui-xs" className="px-2 py-1.5 text-icon3">
+            +{threads.length - MAX_THREADS} more
+          </Txt>
         )}
       </div>
     </div>

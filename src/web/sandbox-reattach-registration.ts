@@ -6,8 +6,8 @@
  * is registered here at web-surface load time.
  */
 import { registerSandboxReattach as registerOnCore } from '@mastra/code-sdk/agents/sandbox-reattach';
-import { reattachSandbox } from './sandbox/fleet.js';
+import { reattachProjectSandbox } from './github/sandbox.js';
 
 export function registerSandboxReattach(): void {
-  registerOnCore(reattachSandbox);
+  registerOnCore(reattachProjectSandbox);
 }

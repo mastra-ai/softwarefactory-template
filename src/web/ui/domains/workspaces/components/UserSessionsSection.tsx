@@ -239,6 +239,7 @@ export function UserSessionsSection() {
               running={runningByPath[worktree.worktreePath] === true}
               attention={attentionByPath[worktree.worktreePath] === true}
               disabled={pending}
+              onSeen={() => clearAttention(worktree.worktreePath)}
               onSelect={() => void openSession(worktree)}
               onDelete={() => setConfirmDelete(worktree)}
             />

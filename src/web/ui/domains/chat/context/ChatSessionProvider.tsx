@@ -11,7 +11,6 @@ import { findUserSessionByThreadId } from '../../workspaces/services/projects';
 import { deriveProjectPath } from '../../../../../shared/hooks/useWorkspaces';
 import { useAgentControllerThreadMessages } from '../../../../../shared/hooks/useAgentControllerThreadMessages';
 import { AGENT_CONTROLLER_ID } from '../services/constants';
-import { ChatCommandsProvider } from './ChatCommandsProvider';
 import { ChatModelsProvider } from './ChatModelsProvider';
 import { ChatModesProvider } from './ChatModesProvider';
 import { ChatPermissionsProvider } from './ChatPermissionsProvider';
@@ -56,13 +55,6 @@ export function ChatSessionConfigProvider({
         resourceId,
         sessionEnabled: projectSessionEnabled,
         projectPath,
-        // Session state consumed server-side: GitHub PR auto-subscription,
-        // the subscribe tools, and agent git-action auditing all gate on
-        // `githubProjectId` being present in session state.
-        projectState:
-          activeProject?.source === 'github' && activeProject.githubProjectId
-            ? { githubProjectId: activeProject.githubProjectId }
-            : undefined,
         baseUrl,
         kind: activeProject?.source === 'github' ? ('factory' as const) : ('user' as const),
         threadBasePath: '/threads' as const,
@@ -105,15 +97,15 @@ export function ChatSessionBoundary({
 
   return (
     <ChatTranscriptProvider
-      key={`${resourceId}:${threadId ?? 'draft'}:${messagesQuery.isPending ? 'loading' : 'ready'}`}
+      key={`${resourceId}:${threadId ?? 'draft'}`}
       threadId={threadId}
       initialMessages={messagesQuery.data}
     >
       <ChatModesProvider>
         <ChatModelsProvider>
-          <ChatCommandsProvider>
+          <ChatPermissionsProvider>
             <ChatThreadMessagesContext.Provider value={messages}>{children}</ChatThreadMessagesContext.Provider>
-          </ChatCommandsProvider>
+          </ChatPermissionsProvider>
         </ChatModelsProvider>
       </ChatModesProvider>
     </ChatTranscriptProvider>

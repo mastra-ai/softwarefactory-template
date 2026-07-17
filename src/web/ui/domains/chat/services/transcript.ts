@@ -200,7 +200,6 @@ export interface OutgoingFile {
 type Action =
   | { type: 'event'; event: AgentControllerEvent }
   | { type: 'localUser'; text: string; steer?: boolean; files?: OutgoingFile[] }
-  | { type: 'clearPending' }
   | { type: 'localNotice'; text: string; level: 'info' | 'error' }
   | { type: 'resolvePrompt'; id: string }
   | {
@@ -256,8 +255,6 @@ export function transcriptReducer(state: TranscriptState, action: Action): Trans
           ),
         ],
       };
-    case 'clearPending':
-      return { ...state, pending: false };
     case 'localNotice':
       return pushNotice(state, action.level, action.text);
     case 'resolvePrompt':
@@ -454,13 +451,15 @@ function applyEvent(state: TranscriptState, raw: AgentControllerEvent): Transcri
       const stepTokens = (usageSnap.completionTokens ?? 0) + (usageSnap.reasoningTokens ?? 0);
       let tps = state.tokensPerSec;
       if (state._decodeStartedAt > 0 && stepTokens > 0) {
-        const decodeSec = Math.max((now - state._decodeStartedAt) / 1000, 0.001);
-        const instantaneous = stepTokens / decodeSec;
-        const alpha = 0.3;
-        tps =
-          state.tokensPerSec > 0
-            ? Math.round(alpha * instantaneous + (1 - alpha) * state.tokensPerSec)
-            : Math.round(instantaneous);
+        const decodeSec = (now - state._decodeStartedAt) / 1000;
+        if (decodeSec > 0) {
+          const instantaneous = stepTokens / decodeSec;
+          const alpha = 0.3;
+          tps =
+            state.tokensPerSec > 0
+              ? Math.round(alpha * instantaneous + (1 - alpha) * state.tokensPerSec)
+              : Math.round(instantaneous);
+        }
       }
       return {
         ...state,
@@ -638,16 +637,9 @@ function hasAssistantText(state: TranscriptState): boolean {
   const idx = latestAssistantIndex(state.entries);
   if (idx === -1) return false;
   const entry = state.entries[idx];
-  if (entry.kind !== 'message' || !Array.isArray(entry.message.content.parts)) return false;
+  if (entry.kind !== 'message') return false;
   return entry.message.content.parts.some(
-    (part: unknown) =>
-      typeof part === 'object' &&
-      part !== null &&
-      'type' in part &&
-      part.type === 'text' &&
-      'text' in part &&
-      typeof part.text === 'string' &&
-      part.text.trim().length > 0,
+    part => part.type === 'text' && 'text' in part && part.text.trim().length > 0,
   );
 }
 

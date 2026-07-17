@@ -1,12 +1,12 @@
-import { MainSidebarProvider } from '@mastra/playground-ui/components/MainSidebar';
 import type { ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router';
 
 import { OverlaysProvider } from '../../lib/overlays';
 import { ActiveProjectProvider } from '../workspaces';
 import { ChatOverlays } from './components/ChatOverlays';
-import { ChatSessionConfigProvider } from './context/ChatSessionProvider';
-import { ChatPermissionsProvider } from './context/ChatPermissionsProvider';
+import { ChatCommandsProvider } from './context/ChatCommandsProvider';
+import { ChatSessionProvider } from './context/ChatSessionProvider';
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
 
 /**
  * Shared chat app providers. Route leaves render their own pages so `/new` is a
@@ -14,15 +14,15 @@ import { ChatPermissionsProvider } from './context/ChatPermissionsProvider';
  */
 export default function Chat() {
   return (
-    <MainSidebarProvider storageKey="mastracode-web" collapsedWidth={0} mobileBreakpoint={768}>
-      <ActiveProjectProvider>
-        <ChatSessionRouteProvider>
-          <OverlaysProvider>
+    <ActiveProjectProvider>
+      <ChatSessionRouteProvider>
+        <OverlaysProvider>
+          <ChatCommandsProvider>
             <ChatShell />
-          </OverlaysProvider>
-        </ChatSessionRouteProvider>
-      </ActiveProjectProvider>
-    </MainSidebarProvider>
+          </ChatCommandsProvider>
+        </OverlaysProvider>
+      </ChatSessionRouteProvider>
+    </ActiveProjectProvider>
   );
 }
 
@@ -36,13 +36,15 @@ function ChatSessionRouteProvider({ children }: { children: ReactNode }) {
       : undefined;
 
   return (
-    <ChatSessionConfigProvider threadId={threadId} userScoped={userScoped}>
-      <ChatPermissionsProvider>{children}</ChatPermissionsProvider>
-    </ChatSessionConfigProvider>
+    <ChatSessionProvider threadId={threadId} userScoped={userScoped}>
+      {children}
+    </ChatSessionProvider>
   );
 }
 
 function ChatShell() {
+  useGlobalShortcuts();
+
   return (
     <>
       <Outlet />
