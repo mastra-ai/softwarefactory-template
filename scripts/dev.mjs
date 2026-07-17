@@ -5,8 +5,10 @@
  * both are ready.
  *
  * Ports are overridable: PORT for the API server, MASTRACODE_UI_PORT for the
- * UI. The banner reports the URLs the servers actually bound (Vite hops to a
- * free port when its default is taken).
+ * UI. The UI port is strict (no hopping to a free port): OAuth callbacks are
+ * registered against the configured origin, so a silently relocated UI would
+ * break every WorkOS/GitHub/Linear redirect. Change MASTRACODE_UI_PORT and
+ * MASTRACODE_PUBLIC_URL together.
  *
  * Env is loaded/validated by varlock from .env against .env.schema.
  */
@@ -101,7 +103,19 @@ run(
   { MASTRACODE_UI_PORT: uiPort, MASTRACODE_API_TARGET: serverUrl },
   text => {
     // eslint-disable-next-line no-control-regex
-    const match = text.replace(/\u001b\[[0-9;]*m/g, '').match(/Local:\s+(https?:\/\/\S+?)\/?\s/);
+    const clean = text.replace(/\u001b\[[0-9;]*m/g, '');
+    if (/Port \d+ is (already )?in use/i.test(clean)) {
+      console.error('');
+      console.error(`[ui] Port ${uiPort} is already in use — the UI port is strict because OAuth`);
+      console.error('[ui] callback URLs (WorkOS/GitHub/Linear) are registered against it.');
+      console.error('[ui] Either free the port, or relocate the app:');
+      console.error('[ui]   1. Run with MASTRACODE_UI_PORT=<port> npm run dev');
+      console.error('[ui]   2. Set MASTRACODE_PUBLIC_URL=http://localhost:<port> in .env');
+      console.error('[ui]   3. Update the callback URLs registered on your OAuth apps to match');
+      console.error('');
+      return;
+    }
+    const match = clean.match(/Local:\s+(https?:\/\/\S+?)\/?\s/);
     if (match) {
       uiUrl = match[1];
       printBanner();

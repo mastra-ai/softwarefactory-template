@@ -21,6 +21,10 @@ npm run dev
 
 With zero configuration the app runs in local, auth-less mode (agents + local storage, no integrations). Features enable themselves as you add environment variables — see below.
 
+### Ports
+
+The UI port is **strict**: if 5173 is taken, `npm run dev` fails instead of moving to a free port, because OAuth callback URLs (WorkOS/GitHub/Linear) are registered against the configured origin and would silently break. To run on a different port, change both together — run with `MASTRACODE_UI_PORT=<port>` and set `MASTRACODE_PUBLIC_URL=http://localhost:<port>` in `.env` (then update the callback URLs on your OAuth apps). The API server port is overridable with `PORT`.
+
 ## Configuration
 
 All configuration lives in `.env` (validated against `.env.schema` by [varlock](https://varlock.dev)). Every value is optional; each feature activates when its variables are set. Restart `npm run dev` after changing `.env`.
@@ -39,7 +43,7 @@ All configuration lives in `.env` (validated against `.env.schema` by [varlock](
 Integrations and shared agent state need Postgres **with the pgvector extension**. Two easy options:
 
 - **Local Docker** (recommended to start): `npm run db:up` starts Postgres on `localhost:54329` matching `APP_DATABASE_URL=postgres://user:pass@localhost:54329/mastracode_web` (plus Redis on `localhost:63799`).
-- **Hosted Postgres**: any provider works if pgvector is available (Neon, Supabase, Railway, RDS, ...). See https://mastra.ai/docs/software-factory/database
+- **Hosted Postgres**: any provider works if pgvector is available (Neon, Supabase, Railway, RDS, ...) — enable the extension and set `APP_DATABASE_URL`.
 
 Without `APP_DATABASE_URL`, agent state falls back to a local libSQL file and integrations stay off.
 
@@ -51,19 +55,17 @@ Integrations are per-organization, so they require sign-in, powered by [WorkOS](
 2. In WorkOS → Redirects, add `http://localhost:5173/auth/callback`.
 3. Set `WORKOS_COOKIE_PASSWORD` to a random 32+ character string.
 
-Guide: https://mastra.ai/docs/software-factory/auth
-
 ### GitHub
 
-The Factory connects to GitHub through a GitHub App you own. `npm create softwarefactory` can create it for you automatically (manifest flow). To do it manually: https://mastra.ai/docs/software-factory/github
+The Factory connects to GitHub through a GitHub App you own. `npm create softwarefactory` walks you through creating one (guided manual entry); to do it yourself, create an app at https://github.com/settings/apps/new (or under your org) and set the `GITHUB_APP_*` variables in `.env`.
 
-The app needs **contents, issues, pull requests, metadata** permissions. Set its callback URL to `<your app origin>/auth/github/callback`.
+The app needs **Contents, Issues, Pull requests** (Read & write) and **Metadata** (Read-only) permissions. Set its callback URL to `<your app origin>/auth/github/callback`.
 
 Webhooks (optional — powers auto-triage and PR notifications, requires a public host; GitHub rejects localhost webhook URLs): in the App settings, set the webhook URL to `https://<public-host>/web/github/webhook` with the `GITHUB_APP_WEBHOOK_SECRET` from `.env` as the secret, activate it, and subscribe to the **issues, issue_comment, pull_request, pull_request_review, pull_request_review_comment** events. Local development works without webhooks; issues are fetched on demand.
 
 ### Linear (optional)
 
-Create a Linear OAuth app and set `LINEAR_CLIENT_ID` / `LINEAR_CLIENT_SECRET`. Guide: https://mastra.ai/docs/software-factory/linear
+Create a Linear OAuth app (Linear → Settings → API → OAuth applications → New) with callback URL `<your app origin>/auth/linear/callback`, then set `LINEAR_CLIENT_ID` / `LINEAR_CLIENT_SECRET` in `.env`.
 
 ## Scripts
 
@@ -84,7 +86,7 @@ Create a Linear OAuth app and set `LINEAR_CLIENT_ID` / `LINEAR_CLIENT_SECRET`. G
 
 ## Versions
 
-This project pins exact versions of the Mastra packages (currently `@mastra/core@1.51.1-alpha.1`, `@mastra/code-sdk@0.1.1-alpha.1`). Upgrade them together when updating.
+The Mastra packages use caret ranges (currently anchored on `@mastra/core@1.52.0-alpha.3` and `@mastra/code-sdk@0.2.0-alpha.3`). Upgrade them together when updating.
 
 ## License
 
