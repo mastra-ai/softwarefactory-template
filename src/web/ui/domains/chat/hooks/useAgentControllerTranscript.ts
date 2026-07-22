@@ -50,8 +50,16 @@ export function useAgentControllerTranscript({
     dispatch({ type: 'resolvePrompt', id });
   };
 
+  const clearPending = () => {
+    dispatch({ type: 'clearPending' });
+  };
+
   const pushNotice = (text: string, level: 'info' | 'error' = 'info') => {
     dispatch({ type: 'localNotice', text, level });
+  };
+
+  const prependOlder = (messages: MastraDBMessage[]) => {
+    dispatch({ type: 'prependOlder', messages });
   };
 
   return {
@@ -61,6 +69,8 @@ export function useAgentControllerTranscript({
     onEvent,
     localUser,
     resolvePrompt,
+    clearPending,
     pushNotice,
+    prependOlder,
   };
 }

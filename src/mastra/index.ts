@@ -2,11 +2,11 @@
  * Platform-deployable Mastra entry for MastraCode.
  *
  * This module is the ONE place deployment env is read. It maps today's env
- * vars onto explicit `MastraFactory` config — instances for behaviors (pubsub),
- * plain values for config (database connection string, publicUrl, origins) —
- * so anyone reading the entry sees exactly which env var feeds which slot.
+ * vars onto explicit `MastraFactory` config — instances for behaviors (pubsub,
+ * storage, vector), plain values for config (publicUrl, origins) — so anyone
+ * reading the entry sees exactly which env var feeds which slot.
  * Everything else (feature readiness, route/middleware assembly, controller
- * construction) lives in `MastraFactory` (`../web/factory-entry.ts`).
+ * construction) lives in `MastraFactory` (`@mastra/factory`).
  *
  * `mastra build` requires the entry to export a `Mastra` instance named
  * `mastra` constructed by a literal `new Mastra(...)` in THIS file (validated
@@ -17,15 +17,18 @@
  * the server.
  */
 
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { Mastra } from '@mastra/core/mastra';
+import { LocalSandbox } from '@mastra/core/workspace';
+import { LibSQLFactoryStorage } from '@mastra/libsql';
+import { PgVector, PgFactoryStorage } from '@mastra/pg';
+import { PlatformSandbox } from '@mastra/platform-workspace';
 import { RedisStreamsPubSub } from '@mastra/redis-streams';
-import { BetterAuthWebAuth } from '../web/auth-better-adapter.js';
-import type { WebAuthAdapter } from '../web/auth-adapter.js';
-import { WorkOSWebAuth } from '../web/auth-workos-adapter.js';
-import { MastraFactory } from '../web/factory-entry.js';
-import type { WebSandboxProvider } from '../web/sandbox-provider.js';
-import { LocalSandboxProvider } from '../web/sandbox-local-provider.js';
-import { RailwaySandboxProvider } from '../web/sandbox-railway-provider.js';
+import { getDatabasePath } from '@mastra/code-sdk/utils/project';
+import { DEFAULT_RETENTION } from '@mastra/code-sdk/utils/storage-maintenance';
+import { MastraFactory } from '@mastra/factory';
+import type { IMastraAuthProvider } from '@mastra/core/server';
 
 /**
  * Parse a positive-integer env knob; anything else means "use the default".
@@ -60,71 +63,108 @@ if (redisUrl) {
   console.log(`[PubSub] REDIS_URL set — event bus on Redis Streams (${redisTarget}), cross-process leases enabled.`);
 }
 
-// Web auth, by env precedence (any custom `WebAuthAdapter` works here too):
-//   1. WORKOS_API_KEY + WORKOS_CLIENT_ID → WorkOS AuthKit (hosted login). The
-//      WorkOS SDK reads its own credentials; the redirect URI falls back to
-//      `<publicUrl>/auth/callback` inside the adapter's init().
-//   2. BETTER_AUTH_SECRET → self-hosted better-auth (email/password on the app
-//      Postgres — no external identity vendor in the availability path).
-//      MASTRACODE_AUTH_SIGNUP_DISABLED=1 turns off public sign-up.
-//   3. Neither → auth disabled (open server, bare local dev).
-const workosConfigured = Boolean(process.env.WORKOS_API_KEY && process.env.WORKOS_CLIENT_ID);
-const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
-let auth: WebAuthAdapter | undefined;
-if (workosConfigured) {
-  auth = new WorkOSWebAuth({ redirectUri: process.env.WORKOS_REDIRECT_URI });
-} else if (betterAuthSecret) {
-  auth = new BetterAuthWebAuth({
-    secret: betterAuthSecret,
-    signUpDisabled: process.env.MASTRACODE_AUTH_SIGNUP_DISABLED === '1',
-  });
+// Factory dev is auth-less by default. Production can opt out explicitly;
+// otherwise MastraFactory installs its platform-backed auth provider.
+const authDisabled = process.env.MASTRACODE_AUTH_DISABLED === '1' || process.env.MASTRA_FACTORY_DEV === 'true';
+let auth: IMastraAuthProvider | null | undefined;
+
+if (authDisabled) {
+  auth = null;
 }
 
-// Sandbox provider, by env precedence:
-//   1. MASTRACODE_SANDBOX_PROVIDER=railway|local — explicit selection. Railway
-//      selected without a token boots with sandboxes (and GitHub projects)
-//      disabled, surfaced in the feature diagnostics.
-//   2. RAILWAY_API_TOKEN set → Railway (isolated cloud VMs, multi-tenant safe).
-//   3. Neither → sandboxes disabled. The local host-process provider is NEVER
-//      an implicit default: it runs repo checkouts and agent commands as the
-//      server process with no tenant isolation, so it must be opted into with
-//      MASTRACODE_SANDBOX_PROVIDER=local (single-user local dev only).
-// Budget/GC knobs: MASTRACODE_SANDBOX_IDLE_MINUTES (default 30),
-// MASTRACODE_MAX_SANDBOXES (default unlimited), MASTRACODE_SANDBOX_WORKDIR
-// (cloud checkout base, default /workspace), MASTRACODE_LOCAL_SANDBOX_ROOT
-// (local checkout root, default ~/.mastracode/web/sandboxes).
-const sandboxKind = process.env.MASTRACODE_SANDBOX_PROVIDER ?? (process.env.RAILWAY_API_TOKEN ? 'railway' : undefined);
-const idleMinutes = positiveInt(process.env.MASTRACODE_SANDBOX_IDLE_MINUTES);
-const maxSandboxes = positiveInt(process.env.MASTRACODE_MAX_SANDBOXES);
-let sandbox: WebSandboxProvider | undefined;
-if (sandboxKind === 'railway') {
-  sandbox = new RailwaySandboxProvider({
-    token: process.env.RAILWAY_API_TOKEN,
-    workdirBase: process.env.MASTRACODE_SANDBOX_WORKDIR,
-    idleMinutes,
-    maxSandboxes,
-  });
-} else if (sandboxKind === 'local') {
-  sandbox = new LocalSandboxProvider({
-    root: process.env.MASTRACODE_LOCAL_SANDBOX_ROOT,
-    idleMinutes,
-    maxSandboxes,
-  });
-} else if (sandboxKind !== undefined) {
-  throw new Error(
-    `Unknown MASTRACODE_SANDBOX_PROVIDER "${sandboxKind}" — expected "railway" or "local" ` +
-      '(or pass a custom WebSandboxProvider to MastraFactory).',
+// Host env exposed to local sandboxes: an allow-list only, so app secrets
+// (GITHUB_APP_PRIVATE_KEY, WORKOS_API_KEY, DATABASE_URL, …) never leak into
+// commands run against untrusted repo checkouts. PATH is always added by the
+// core LocalSandbox itself; the rest keeps git and TLS working normally.
+const LOCAL_SANDBOX_ENV_KEYS = [
+  'HOME',
+  'USER',
+  'LOGNAME',
+  'SHELL',
+  'TMPDIR',
+  'LANG',
+  'LC_ALL',
+  'TERM',
+  'TZ',
+  'GIT_EXEC_PATH',
+  'GIT_TEMPLATE_DIR',
+  'SSL_CERT_FILE',
+  'SSL_CERT_DIR',
+] as const;
+
+function localSandboxEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const key of LOCAL_SANDBOX_ENV_KEYS) {
+    const value = process.env[key];
+    if (value) env[key] = value;
+  }
+  return env;
+}
+
+const PLATFORM_SANDBOX_ENV_KEYS = ['MASTRA_ENVIRONMENT_ID', 'MASTRA_PROJECT_ID', 'MASTRA_PLATFORM_SECRET_KEY'] as const;
+const hasPlatformSandboxEnv = PLATFORM_SANDBOX_ENV_KEYS.every(key => Boolean(process.env[key]?.trim()));
+
+// Use PlatformSandbox only when its complete identity is configured. Otherwise
+// fall back to LocalSandbox for single-user development.
+const sandbox = hasPlatformSandboxEnv
+  ? new PlatformSandbox()
+  : new LocalSandbox({
+      workingDirectory:
+        process.env.MASTRACODE_LOCAL_SANDBOX_ROOT?.trim() || join(homedir(), '.mastracode', 'web', 'sandboxes'),
+      env: localSandboxEnv(),
+    });
+
+// One FactoryStorage backend powers agent storage, the factory app tables,
+// the distributed project lock, and better-auth. `DATABASE_URL` set →
+// Postgres (the paired PgVector rides the same database for recall search).
+// Unset (bare local dev) → libSQL on the same local file the SDK's default
+// storage resolution uses, running the FULL app surface (auth, intake,
+// audit, work-items, integrations) — no features silently off.
+//
+// `APP_DATABASE_URL` is the deprecated legacy name — still honored as a
+// fallback so existing checkouts keep working, but new setups should use
+// `DATABASE_URL` (matches the platform's managed env-var sync for attached
+// databases, so `mastra deploy` populates it automatically).
+const databaseUrl = process.env.DATABASE_URL?.trim() || process.env.APP_DATABASE_URL?.trim() || undefined;
+if (process.env.APP_DATABASE_URL?.trim() && !process.env.DATABASE_URL?.trim()) {
+  console.warn(
+    '[mastracode-web] APP_DATABASE_URL is deprecated — rename it to DATABASE_URL. ' +
+      'The old name is honored as a fallback for now, but new deploys should use DATABASE_URL.',
   );
 }
+const localDevelopmentMode = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+if (!databaseUrl && !localDevelopmentMode) {
+  throw new Error('DATABASE_URL is required outside local development and tests.');
+}
+const storage = databaseUrl
+  ? new PgFactoryStorage({
+      id: 'mastra-code-storage',
+      connectionString: databaseUrl,
+      retention: DEFAULT_RETENTION,
+    })
+  : new LibSQLFactoryStorage({
+      id: 'mastra-code-storage',
+      url: `file:${getDatabasePath()}`,
+      retention: DEFAULT_RETENTION,
+    });
+const vector = databaseUrl ? new PgVector({ id: 'mastra-code-vectors', connectionString: databaseUrl }) : undefined;
 
 export const factory = new MastraFactory({
   auth,
-  sandbox,
+  sandbox: {
+    machine: sandbox,
+    // Remote checkout base (nested `owner/name` per repo). LocalSandbox ignores
+    // this in-sandbox path and uses its host workingDirectory instead.
+    workdir: process.env.MASTRACODE_SANDBOX_WORKDIR,
+    // Per-replica cap on concurrently provisioned sandboxes. Unset → unlimited.
+    maxSandboxes: positiveInt(process.env.MASTRACODE_MAX_SANDBOXES),
+  },
   // Agent state (threads, messages, memory, OM, recall vectors) lives in the
-  // single app Postgres alongside the github/app tables — one shared DB for
-  // all users, separated by `resourceId` scoping. Unset (bare local dev) →
-  // default storage resolution applies (local libSQL file).
-  database: process.env.APP_DATABASE_URL,
+  // single app Postgres alongside the github/app tables — one shared DB (and
+  // pg pool) for all users, separated by `resourceId` scoping. Unset (bare
+  // local dev) → default storage resolution applies (local libSQL file).
+  storage,
+  vector,
   pubsub,
   // Browser-facing origin. On the platform the SPA is hosted separately, so
   // this MUST be set to the public API origin.
@@ -135,13 +175,25 @@ export const factory = new MastraFactory({
     .split(',')
     .map(o => o.trim())
     .filter(Boolean),
+  // Deployment-stable secret for OAuth `state` signing (GitHub/Linear connect
+  // flows). Same resolution the state signer used before it moved into the
+  // factory: webhook secret first, then the WorkOS cookie password. Unset →
+  // per-process random secret (single-process local dev only).
+  stateSecret: process.env.GITHUB_APP_WEBHOOK_SECRET || process.env.WORKOS_COOKIE_PASSWORD || undefined,
 });
 
 // Construct the server-owned Mastra HERE so the `new Mastra(...)` literal lives
 // in the entry file (see module docs). `prepare()` returns the constructor args
 // carrying the controller (via `agentControllers`), storage, and the assembled
 // `server` config (middleware + apiRoutes + cors).
-export const mastra = new Mastra(await factory.prepare());
+const prepared = await factory.prepare();
+export const mastra = new Mastra({
+  ...prepared,
+  bundler: {
+    externals: ['@anush008/tokenizers', '@duckdb/node-bindings', '@node-rs/xxhash', 'supports-color'],
+    transpilePackages: ['@mastra/factory'],
+  },
+});
 
 // Post-construct boot: initialize the controller (which now inherits this
 // instance's storage) and start its workers. Runs at module load via top-level

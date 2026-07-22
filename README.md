@@ -1,8 +1,8 @@
-# Mastra Software Factory
+# Mastra Factory
 
 An open source, agent-powered software delivery environment built on [Mastra](https://mastra.ai). Connect GitHub and Linear, pull issues into an intake board, hand them to coding agents, and ship pull requests — from a web app you own and can deploy anywhere.
 
-Created with [`npm create softwarefactory`](https://www.npmjs.com/package/create-softwarefactory).
+Created with [`npm create factory`](https://www.npmjs.com/package/create-factory).
 
 ## Quick start
 
@@ -16,10 +16,11 @@ npm run dev
 ```
 
 - **Factory UI** → http://localhost:5173
-- **Mastra Studio** → http://localhost:4111
 - **API** → http://localhost:4111/api
 
-With zero configuration the app runs in local, auth-less mode (agents + local storage, no integrations). Features enable themselves as you add environment variables — see below.
+For a production-like, same-origin server without UI live reload, run `npm run dev:prod` and open http://localhost:5173.
+
+With zero configuration the app runs in local, auth-less mode (agents + local storage, no integrations). Open the Factory UI to finish setup — model provider keys are added there (Settings › Models). Deployment-level features enable themselves as you add environment variables — see below.
 
 ### Ports
 
@@ -27,16 +28,16 @@ The UI port is **strict**: if 5173 is taken, `npm run dev` fails instead of movi
 
 ## Configuration
 
-All configuration lives in `.env` (validated against `.env.schema` by [varlock](https://varlock.dev)). Every value is optional; each feature activates when its variables are set. Restart `npm run dev` after changing `.env`.
+Day-to-day configuration (model providers, integrations) happens in the web UI. Deployment-level settings live in `.env` (validated against `.env.schema` by [varlock](https://varlock.dev)). Every value is optional; each feature activates when its variables are set. Restart `npm run dev` after changing `.env`.
 
-| Feature | Requires |
-| --- | --- |
-| Agents / model providers | `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` (or add keys in Settings › Models) |
-| Sign-in (WorkOS) | `WORKOS_API_KEY`, `WORKOS_CLIENT_ID` |
-| GitHub projects & intake | WorkOS + `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_SLUG` + `APP_DATABASE_URL` |
-| Linear intake | WorkOS + `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET` + `APP_DATABASE_URL` + a state secret (`GITHUB_APP_WEBHOOK_SECRET` or `WORKOS_COOKIE_PASSWORD`) |
-| Distributed event bus | `REDIS_URL` (only needed for multi-process deployments) |
-| Cloud sandboxes | `RAILWAY_API_TOKEN` (defaults to a local git sandbox otherwise) |
+| Feature                  | Requires                                                                                                                                            |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agents / model providers | add keys in the UI (Settings › Models), or `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`                                                                   |
+| Sign-in (WorkOS)         | `WORKOS_API_KEY`, `WORKOS_CLIENT_ID`                                                                                                                |
+| GitHub projects & intake | WorkOS + `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_SLUG` + `APP_DATABASE_URL`      |
+| Linear intake            | WorkOS + `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET` + `APP_DATABASE_URL` + a state secret (`GITHUB_APP_WEBHOOK_SECRET` or `WORKOS_COOKIE_PASSWORD`) |
+| Distributed event bus    | `REDIS_URL` (only needed for multi-process deployments)                                                                                             |
+| Cloud sandboxes          | `RAILWAY_API_TOKEN` (defaults to a local git sandbox otherwise)                                                                                     |
 
 ### Database
 
@@ -57,7 +58,7 @@ Integrations are per-organization, so they require sign-in, powered by [WorkOS](
 
 ### GitHub
 
-The Factory connects to GitHub through a GitHub App you own. `npm create softwarefactory` walks you through creating one (guided manual entry); to do it yourself, create an app at https://github.com/settings/apps/new (or under your org) and set the `GITHUB_APP_*` variables in `.env`.
+The Factory connects to GitHub through a GitHub App you own. Create an app at https://github.com/settings/apps/new (or under your org) and set the `GITHUB_APP_*` variables in `.env`.
 
 The app needs **Contents, Issues, Pull requests** (Read & write) and **Metadata** (Read-only) permissions. Set its callback URL to `<your app origin>/auth/github/callback`.
 
@@ -69,14 +70,17 @@ Create a Linear OAuth app (Linear → Settings → API → OAuth applications �
 
 ## Scripts
 
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | API server (:4111) + Factory UI (:5173) with live reload |
-| `npm run db:up` / `db:down` | Start/stop local Postgres + Redis (Docker) |
-| `npm run build` | Build the SPA and bundle the server to `.mastra/output` |
-| `npm run start` | Run the production build |
-| `npm run deploy` | Build, validate, and deploy to [Mastra Cloud](https://mastra.ai/docs/mastra-platform/overview) |
-| `npm run check` | Typecheck server and UI |
+| Script                      | What it does                                                                                   |
+| --------------------------- | ---------------------------------------------------------------------------------------------- |
+| `npm run dev`               | API server (:4111) + Factory UI (:5173) with live reload                                       |
+| `npm run dev:prod`          | Build the UI once and serve it from the Factory server (:5173)                                 |
+| `npm run db:up` / `db:down` | Start/stop local Postgres + Redis (Docker)                                                     |
+| `npm run build`             | Build the SPA (`build:ui`) and bundle the server to `.mastra/output`                           |
+| `npm run start`             | Run the production build                                                                       |
+| `npm run deploy`            | Build, validate, and deploy to [Mastra Cloud](https://mastra.ai/docs/mastra-platform/overview) |
+| `npm run check`             | Typecheck server and UI                                                                        |
+
+`mastra build` and `mastra deploy` detect the Factory entry automatically and run `build:ui` (Vite) before bundling. The SPA is copied to `.mastra/output/factory/` and a `mastra-project.json` manifest is emitted alongside it.
 
 ## Requirements
 
@@ -86,7 +90,9 @@ Create a Linear OAuth app (Linear → Settings → API → OAuth applications �
 
 ## Versions
 
-The Mastra packages use caret ranges (currently anchored on `@mastra/core@1.52.0-alpha.3` and `@mastra/code-sdk@0.2.0-alpha.3`). Upgrade them together when updating.
+The Mastra packages are pinned to `alpha`, so `npm install` pulls the current published prerelease. Upgrade them together by re-running `npm install` (or by rescaffolding).
+
+The included `.npmrc` sets `legacy-peer-deps=true` so npm accepts the internally-consistent prerelease peer graph; you can delete it once the packages ship stable releases.
 
 ## License
 
