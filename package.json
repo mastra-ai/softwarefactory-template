@@ -5,15 +5,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail --names server,ui \"MASTRA_SKIP_PEERDEP_CHECK=1 varlock run -- mastra factory dev --dir src/mastra\" \"vite --config src/web/vite.config.ts\"",
-    "dev:prod": "npm run build:ui && PORT=5173 MASTRA_SKIP_PEERDEP_CHECK=1 varlock run -- mastra factory dev --dir src/mastra",
+    "dev": "mastra factory dev --dir src/mastra",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
+    "check": "tsc --noEmit && tsc --noEmit -p src/web/ui/tsconfig.json",
     "build": "mastra build --dir src/mastra",
-    "build:ui": "vite --config src/web/vite.config.ts build",
     "start": "varlock run -- mastra start",
-    "deploy": "npm run build && node scripts/validate-output.mjs && mastra deploy --skip-build",
-    "check": "tsc --noEmit && tsc --noEmit -p src/web/ui/tsconfig.json"
+    "deploy": "mastra deploy"
   },
   "keywords": [],
   "author": "",
@@ -65,7 +63,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.4",
     "class-variance-authority": "^0.7.1",
-    "concurrently": "^9.1.2",
     "mastra": "alpha",
     "react-grab": "^0.1.37",
     "tailwindcss": "4.2.2",
