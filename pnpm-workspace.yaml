@@ -1,0 +1,14 @@
+# pnpm configuration for the Mastra Factory template.
+# Prevents ERR_PNPM_IGNORED_BUILDS on pnpm v10+ by explicitly approving
+# (or declining) build scripts for dependencies that have them.
+# npm ignores this file entirely; it only affects pnpm installs.
+allowBuilds:
+  '@google/genai': true
+  agent-browser: true
+  bufferutil: true
+  edgedriver: false
+  esbuild: true
+  geckodriver: false
+  onnxruntime-node: true
+  protobufjs: true
+  utf-8-validate: true
