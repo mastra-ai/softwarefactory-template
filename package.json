@@ -16,10 +16,10 @@
   },
   "dependencies": {
     "@mastra/auth-workos": "1.6.5",
-    "@mastra/code-sdk": "1.8.0",
-    "@mastra/core": "1.68.0",
+    "@mastra/code-sdk": "1.8.1",
+    "@mastra/core": "1.69.0",
     "@mastra/e2b": "0.12.1",
-    "@mastra/factory": "0.16.0",
+    "@mastra/factory": "0.17.0",
     "@mastra/libsql": "1.23.1",
     "@mastra/pg": "1.26.0",
     "@mastra/platform-workspace": "1.6.1",
@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@types/node": "22.20.1",
-    "mastra": "1.31.0",
+    "mastra": "1.31.1",
     "typescript": "^5.9.2",
     "varlock": "^1.9.0"
   },
