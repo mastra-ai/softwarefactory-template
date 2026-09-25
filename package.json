@@ -16,20 +16,20 @@
   },
   "dependencies": {
     "@mastra/auth-workos": "1.6.5",
-    "@mastra/code-sdk": "1.8.2",
-    "@mastra/core": "1.70.0",
+    "@mastra/code-sdk": "1.8.3",
+    "@mastra/core": "1.71.0",
     "@mastra/e2b": "0.12.1",
-    "@mastra/factory": "0.17.1",
-    "@mastra/libsql": "1.23.2",
-    "@mastra/pg": "1.27.0",
+    "@mastra/factory": "0.17.2",
+    "@mastra/libsql": "1.23.3",
+    "@mastra/pg": "1.27.1",
     "@mastra/platform-workspace": "1.6.1",
     "@mastra/redis-streams": "0.5.1",
     "zod": "^4.3.6",
-    "@mastra/memory": "1.32.0"
+    "@mastra/memory": "1.32.1"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
-    "mastra": "1.31.2",
+    "mastra": "1.31.3",
     "typescript": "^5.9.2",
     "varlock": "^1.9.0"
   },
