@@ -16,10 +16,10 @@
   },
   "dependencies": {
     "@mastra/auth-workos": "1.6.7",
-    "@mastra/code-sdk": "1.15.0",
-    "@mastra/core": "1.79.0",
+    "@mastra/code-sdk": "1.16.0",
+    "@mastra/core": "1.80.0",
     "@mastra/e2b": "0.15.0",
-    "@mastra/factory": "0.24.0",
+    "@mastra/factory": "0.25.0",
     "@mastra/libsql": "1.27.0",
     "@mastra/pg": "1.32.0",
     "@mastra/platform-workspace": "1.9.0",
