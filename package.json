@@ -1,7 +1,7 @@
 {
   "name": "mastra-factory",
   "version": "0.1.0",
-  "description": "Mastra Factory: an agent-powered software delivery environment. Intake GitHub/Linear issues, work them with coding agents, and ship pull requests — all from your own deployable web app.",
+  "description": "Mastra Factory: an agent-powered software delivery environment. Intake GitHub/Linear issues, work them with coding agents, and ship pull requests \u2014 all from your own deployable web app.",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
@@ -15,21 +15,22 @@
     "deploy": "mastra deploy"
   },
   "dependencies": {
-    "@mastra/auth-workos": "1.6.7",
-    "@mastra/code-sdk": "1.16.0",
-    "@mastra/core": "1.80.0",
-    "@mastra/e2b": "0.15.0",
-    "@mastra/factory": "0.25.0",
-    "@mastra/libsql": "1.27.0",
-    "@mastra/pg": "1.32.0",
-    "@mastra/platform-workspace": "1.9.0",
-    "@mastra/redis-streams": "0.6.4",
+    "@mastra/auth-workos": "1.6.9",
+    "@mastra/code-sdk": "1.19.0",
+    "@mastra/core": "1.83.0",
+    "@mastra/e2b": "0.17.0",
+    "@mastra/factory": "0.28.0",
+    "@mastra/libsql": "1.30.0",
+    "@mastra/pg": "1.36.0",
+    "@mastra/platform-workspace": "1.13.0",
+    "@mastra/redis-streams": "0.8.1",
     "zod": "^4.6.7",
-    "@mastra/memory": "1.39.0"
+    "@mastra/memory": "1.41.1"
   },
   "devDependencies": {
+    "@mastra/deployer": "1.83.0",
     "@types/node": "22.20.5",
-    "mastra": "1.35.0",
+    "mastra": "1.39.0",
     "typescript": "^5.9.2",
     "varlock": "^1.23.0"
   },
